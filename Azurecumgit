@@ -1,0 +1,45 @@
+pipeline {
+agent any
+stages {
+  stage ('Azure_login') {
+    steps {
+       sh 'az login --service-principal -u  6f2347da-e00b-41d0-8738-61db97dec0eb -p    e31d59f9-6c43-4c96-8586-e5f8e524fb0c --tenant   6b94bb78-d3ab-45ee-a0d0-468e38a6057d'
+    }
+  }
+  stage ('Resourcegroupp Creation') {
+    steps {
+       sh 'az group create --name atmecs817 --location eastus'
+    }
+  }
+  stage ('VM creation') {
+    steps {
+       sh 'az vm create --resource-group  atmecs817 --name  Atmecs_devops_vm2  --image CentOS  --admin-username atmecs  --admin-password Atmecs@123456  --location eastus'
+    }
+  }
+  stage ('Open Inbound Ports') {
+    steps {
+       sh 'az vm open-port --port 22 --resource-group atmecs817  --name Atmecs_devops_vm2'
+    }
+  }
+  stage ('Github activity') {
+    steps {
+       git credentialsId: 'jenkins', url: ' https://github.com/asifsmd1202/New_POC_DevOps.git'
+       sh '''
+       ip=$(az vm show --resource-group atmecs817 --name Atmecs_devops_vm2 -d --query [publicIps] --o tsv)
+       sshpass -p 'Atmecs@123456' ssh -t -t -o StrictHostKeyChecking=no atmecs@$ip << 'ENDSSH'
+       sudo -S <<< "Atmecs@123456" yum update -y
+       sudo -S <<< "Atmecs@123456" yum install git* -y
+       sudo -S <<< "Atmecs@123456" git init
+       sudo -S <<< "Atmecs@123456" pwd
+       sudo -S <<< "Atmecs@123456" git clone https://github.com/asifsmd1202/New_POC_DevOps.git
+       sudo -S <<< "Atmecs@123456" git remote add origin https://github.com/asifsmd1202/New_POC_DevOps.git
+       sudo -S <<< "Atmecs@123456" git remote -v
+       sudo -S <<< "Atmecs@123456" git pull origin master
+       exit
+       exit
+       ENDSSH
+       '''
+    }
+  }
+}
+}
